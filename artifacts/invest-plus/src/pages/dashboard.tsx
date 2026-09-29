@@ -1,4 +1,380 @@
-───────────────────────────────────────────────────
+import { useState, useEffect, useRef, type ReactNode } from "react";
+import { useLocation, Link } from "wouter";
+import { useAuth } from "@/hooks/use-auth";
+import {
+  ArrowUpRight, ArrowDownLeft, RefreshCw, Plus, ChevronRight,
+  History, ScanQrCode, Sparkles, X, ChevronDown, AlertCircle,
+  Check, Copy, ArrowLeft, Clock, TrendingUp, TrendingDown,
+  Wallet, ExternalLink, CheckCircle2, Send, Search
+} from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getAuthToken } from "@/lib/auth";
+import QRCode from "qrcode";
+
+// ─── Hardcoded deposit addresses (frontend fallback) ─────────────────────────
+const DEPOSIT_ADDRESSES: Record<string, { address: string; network: string }> = {
+  usdt: { address: "TJYeasTPa6gpEEhTKHSENkHPKh1BHXQ7N1",          network: "TRC20 (Tron)" },
+  btc:  { address: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",  network: "Bitcoin (BTC)" },
+  eth:  { address: "0x742d35Cc6634C0532925a3b8D4C9C4B4d5e6F7a1",  network: "Ethereum (ERC20)" },
+  bnb:  { address: "bnb1grpf0955h0ykzq3ar5nmum7y6gdfl6lxfn46h2", network: "BSC (BEP20)" },
+  trx:  { address: "TRX7NHqjeKQxGTCi8q8ZY4pL5Zae3KZkKb",         network: "TRC20 (Tron)" },
+};
+
+// ─── API helpers ─────────────────────────────────────────────────────────────
+
+const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
+
+async function apiFetch(path: string, opts: RequestInit = {}) {
+  const token = getAuthToken();
+  const res = await fetch(`${BASE}/api${path}`, {
+    ...opts,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(opts.headers ?? {}),
+    },
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+function useWalletBalances() {
+  return useQuery({
+    queryKey: ["wallet-balances"],
+    queryFn: () => apiFetch("/wallet/balances"),
+    refetchInterval: 30_000,
+  });
+}
+
+function useTransactions() {
+  return useQuery({
+    queryKey: ["transactions"],
+    queryFn: () => apiFetch("/transactions"),
+  });
+}
+
+// ─── Coin logo SVGs (all 27 coins, brand-accurate) ───────────────────────────
+
+function CoinLogo({ slug, size = 40 }: { slug: string; size?: number }) {
+  const s = size;
+  const logos: Record<string, ReactNode> = {
+    // ── Tether USDT ──
+    usdt: <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="20" fill="#26A17B"/>
+      <rect x="11" y="13" width="18" height="3.5" rx="1.75" fill="white"/>
+      <rect x="18.25" y="16.5" width="3.5" height="11" rx="1.75" fill="white"/>
+      <ellipse cx="20" cy="22" rx="7" ry="2.5" fill="white" opacity="0.35"/>
+    </svg>,
+
+    // ── Bitcoin ──
+    btc: <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="20" fill="#F7931A"/>
+      <path d="M24.5 17.5c.3-2-1.2-3-3.3-3.7l.7-2.8-1.7-.4-.7 2.7-1.3-.3.7-2.7-1.7-.4-.7 2.8-2.6-.6-.5 1.8s1.3.3 1.2.3c.7.2.8.6.8 1l-2 7.9c-.1.2-.3.5-.8.4 0 .1-1.2-.3-1.2-.3l-.8 2 2.5.6-.7 2.8 1.7.4.7-2.8 1.3.3-.7 2.8 1.7.4.7-2.8c2.9.6 5.1.3 6-2.3.7-2-.1-3.2-1.5-3.9 1.1-.3 1.9-1 2.2-2.5zm-3.9 5.5c-.5 2-3.9.9-5 .6l.9-3.6c1.1.3 4.6.8 4.1 3zm.5-5.5c-.5 1.8-3.3.9-4.2.7l.8-3.3c.9.2 3.8.6 3.4 2.6z" fill="white"/>
+    </svg>,
+
+    // ── Ethereum ──
+    eth: <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="20" fill="#627EEA"/>
+      <polygon points="20,8 13,21 20,25 27,21" fill="white" opacity="0.9"/>
+      <polygon points="20,27 13,23 20,32 27,23" fill="white" opacity="0.7"/>
+      <polygon points="20,8 20,25 27,21" fill="white" opacity="0.5"/>
+      <polygon points="20,27 20,32 27,23" fill="white" opacity="0.4"/>
+    </svg>,
+
+    // ── BNB ──
+    bnb: <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="20" fill="#1E2026"/>
+      <path d="M20 10l2.5 2.5-7.5 7.5-2.5-2.5L20 10z" fill="#F3BA2F"/>
+      <path d="M25 15l2.5 2.5-12.5 12.5-2.5-2.5L25 15z" fill="#F3BA2F"/>
+      <path d="M15 15l2.5 2.5 2.5-2.5-2.5-2.5L15 15z" fill="#F3BA2F"/>
+      <path d="M25 25l2.5 2.5-2.5 2.5-2.5-2.5L25 25z" fill="#F3BA2F"/>
+      <path d="M20 20l2.5 2.5-2.5 2.5-2.5-2.5L20 20z" fill="#F3BA2F"/>
+    </svg>,
+
+    // ── Tron ──
+    trx: <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="20" fill="#EF0027"/>
+      <polygon points="11,14 29,19 20,31" fill="white" opacity="0.95"/>
+      <polygon points="11,14 20,22 20,31" fill="white" opacity="0.5"/>
+    </svg>,
+
+    // ── XRP ──
+    xrp: <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="20" fill="#346AA9"/>
+      <path d="M27 12h3l-7 7c-1.7 1.7-4.3 1.7-6 0l-7-7h3l5.5 5.5c.8.8 2.2.8 3 0L27 12z" fill="white"/>
+      <path d="M13 28h-3l7-7c1.7-1.7 4.3-1.7 6 0l7 7h-3l-5.5-5.5c-.8-.8-2.2-.8-3 0L13 28z" fill="white"/>
+    </svg>,
+
+    // ── Solana ──
+    sol: <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="20" fill="#9945FF"/>
+      <defs>
+        <linearGradient id="sol-g" x1="10" y1="20" x2="30" y2="20">
+          <stop offset="0%" stopColor="#00FFA3"/>
+          <stop offset="100%" stopColor="#DC1FFF"/>
+        </linearGradient>
+      </defs>
+      <rect x="10" y="13" width="20" height="3" rx="1.5" fill="url(#sol-g)"/>
+      <rect x="10" y="18.5" width="20" height="3" rx="1.5" fill="url(#sol-g)"/>
+      <rect x="10" y="24" width="20" height="3" rx="1.5" fill="url(#sol-g)"/>
+    </svg>,
+
+    // ── Cardano ──
+    ada: <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="20" fill="#0033AD"/>
+      <circle cx="20" cy="13" r="2" fill="white"/>
+      <circle cx="20" cy="27" r="2" fill="white"/>
+      <circle cx="13" cy="16.5" r="2" fill="white"/>
+      <circle cx="27" cy="16.5" r="2" fill="white"/>
+      <circle cx="13" cy="23.5" r="2" fill="white"/>
+      <circle cx="27" cy="23.5" r="2" fill="white"/>
+      <circle cx="20" cy="20" r="3" fill="white" opacity="0.6"/>
+    </svg>,
+
+    // ── Dogecoin ──
+    doge: <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="20" fill="#C2A633"/>
+      <circle cx="20" cy="20" r="20" fill="#BA9F33"/>
+      <text x="50%" y="56%" textAnchor="middle" dominantBaseline="middle" fill="white" fontSize="15" fontWeight="900" fontFamily="Arial">Ð</text>
+    </svg>,
+
+    // ── Polygon ──
+    matic: <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="20" fill="#8247E5"/>
+      <path d="M25.5 16.5l-3-1.7c-.3-.2-.7-.2-1 0l-3 1.7c-.3.2-.5.5-.5.9v3.4c0 .4.2.7.5.9l3 1.7c.3.2.7.2 1 0l3-1.7c.3-.2.5-.5.5-.9v-3.4c0-.4-.2-.7-.5-.9z" fill="white" opacity="0.9"/>
+      <path d="M20 11l-8 4.6v9.2l8 4.6 8-4.6v-9.2L20 11zm6 12.7L20 27.2l-6-3.5v-7l6-3.5 6 3.5v7z" fill="white" opacity="0.7"/>
+    </svg>,
+
+    // ── Litecoin ──
+    ltc: <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="20" fill="#345D9D"/>
+      <text x="47%" y="56%" textAnchor="middle" dominantBaseline="middle" fill="white" fontSize="18" fontWeight="bold" fontFamily="Arial">Ł</text>
+    </svg>,
+
+    // ── Polkadot ──
+    dot: <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="20" fill="#E6007A"/>
+      <ellipse cx="20" cy="13" rx="4" ry="4" fill="white"/>
+      <ellipse cx="20" cy="27" rx="4" ry="4" fill="white"/>
+      <ellipse cx="13" cy="20" rx="3" ry="3" fill="white" opacity="0.6"/>
+      <ellipse cx="27" cy="20" rx="3" ry="3" fill="white" opacity="0.6"/>
+      <ellipse cx="14.5" cy="14.5" rx="2.5" ry="2.5" fill="white" opacity="0.4"/>
+      <ellipse cx="25.5" cy="14.5" rx="2.5" ry="2.5" fill="white" opacity="0.4"/>
+      <ellipse cx="14.5" cy="25.5" rx="2.5" ry="2.5" fill="white" opacity="0.4"/>
+      <ellipse cx="25.5" cy="25.5" rx="2.5" ry="2.5" fill="white" opacity="0.4"/>
+    </svg>,
+
+    // ── Avalanche ──
+    avax: <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="20" fill="#E84142"/>
+      <path d="M20 10l8 13.5h-5l-3-5-3 5h-5L20 10z" fill="white"/>
+      <path d="M10 26h5l2 3.5H10V26zm15 0h5v3.5H23L25 26z" fill="white" opacity="0.7"/>
+    </svg>,
+
+    // ── Chainlink ──
+    link: <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="20" fill="#2A5ADA"/>
+      <path d="M20 10l-3 1.7v10.6l3 1.7 3-1.7V11.7L20 10z" fill="white" opacity="0.9"/>
+      <path d="M13 14.3L10 16v8l3 1.7V14.3z" fill="white" opacity="0.7"/>
+      <path d="M27 14.3v11.4L30 24v-8l-3-1.7z" fill="white" opacity="0.7"/>
+      <path d="M13 26.3L16 28l4-2.3-4-2.3-3 2.6z" fill="white" opacity="0.8"/>
+      <path d="M27 26.3L24 28l-4-2.3 4-2.3 3 2.6z" fill="white" opacity="0.8"/>
+    </svg>,
+
+    // ── Uniswap ──
+    uni: <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="20" fill="#FF007A"/>
+      <circle cx="16" cy="14" r="3.5" fill="white" opacity="0.9"/>
+      <path d="M16 17.5c0 0 1.5 5.5 6.5 7.5s7 2.5 7 2.5" stroke="white" strokeWidth="2" strokeLinecap="round" fill="none" opacity="0.9"/>
+      <path d="M13 14c0 0-2 4-1 8s3 6.5 3 6.5" stroke="white" strokeWidth="2" strokeLinecap="round" fill="none" opacity="0.7"/>
+      <circle cx="27" cy="27" r="3.5" fill="white" opacity="0.9"/>
+    </svg>,
+
+    // ── Cosmos ──
+    atom: <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="20" fill="#2E3148"/>
+      <circle cx="20" cy="20" r="3" fill="white"/>
+      <ellipse cx="20" cy="20" rx="10" ry="5" stroke="white" strokeWidth="1.5" fill="none"/>
+      <ellipse cx="20" cy="20" rx="10" ry="5" stroke="white" strokeWidth="1.5" fill="none" transform="rotate(60 20 20)"/>
+      <ellipse cx="20" cy="20" rx="10" ry="5" stroke="white" strokeWidth="1.5" fill="none" transform="rotate(120 20 20)"/>
+    </svg>,
+
+    // ── Toncoin ──
+    ton: <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="20" fill="#0098EA"/>
+      <path d="M14 13h12l-6 14L14 13z" fill="white" opacity="0.95"/>
+      <path d="M20 27l-6-14h6v14z" fill="white" opacity="0.6"/>
+    </svg>,
+
+    // ── Shiba Inu ──
+    shib: <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="20" fill="#FFA409"/>
+      <text x="50%" y="55%" textAnchor="middle" dominantBaseline="middle" fontSize="9" fontWeight="900" fill="#C2410C" fontFamily="Arial">SHIB</text>
+      <circle cx="15" cy="17" r="2.5" fill="#C2410C" opacity="0.8"/>
+      <circle cx="25" cy="17" r="2.5" fill="#C2410C" opacity="0.8"/>
+      <path d="M16 23c1.1 1.5 6.9 1.5 8 0" stroke="#C2410C" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+    </svg>,
+
+    // ── Stellar ──
+    xlm: <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="20" fill="#14B6E7"/>
+      <path d="M28 14.5l-1.8.9L12 23l-1.5.8.8 1.5 1.8-.9 14.2-7.6 1.5-.8-.8-1.5z" fill="white"/>
+      <path d="M10.5 16.5l1.5.8 14.2 7.6 1.8.9.8-1.5-1.5-.8L13 15.9l-1.8-.9-.7 1.5z" fill="white" opacity="0.6"/>
+      <circle cx="20" cy="20" r="2.5" fill="white"/>
+    </svg>,
+
+    // ── NEAR ──
+    near: <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="20" fill="#00C08B"/>
+      <text x="13" y="23" fontSize="9" fontWeight="900" fill="white" fontFamily="Arial">N</text>
+      <path d="M15 13l10 14" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
+      <text x="22" y="23" fontSize="9" fontWeight="900" fill="white" fontFamily="Arial">R</text>
+    </svg>,
+
+    // ── Algorand ──
+    algo: <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="20" fill="#00B4D0"/>
+      <path d="M16 28l2.5-9 1.5 4 2-4.5 1.5 4L26 28h-2.5l-1-2.5-2 4.5-2-4.5-1 2.5H16z" fill="white"/>
+    </svg>,
+
+    // ── Aptos ──
+    apt: <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="20" fill="#25D4AC"/>
+      <circle cx="16" cy="16" r="2.5" fill="white"/>
+      <circle cx="24" cy="16" r="2.5" fill="white"/>
+      <circle cx="16" cy="24" r="2.5" fill="white"/>
+      <circle cx="24" cy="24" r="2.5" fill="white"/>
+      <rect x="14" y="19" width="12" height="2" rx="1" fill="white" opacity="0.5"/>
+    </svg>,
+
+    // ── Arbitrum ──
+    arb: <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="20" fill="#28A0F0"/>
+      <path d="M20 10L11 25h4l5-8.5 5 8.5h4L20 10z" fill="white" opacity="0.95"/>
+      <path d="M14 27l2-3.3 2 3.3H14zm8 0l2-3.3 2 3.3H22z" fill="white" opacity="0.7"/>
+    </svg>,
+
+    // ── Optimism ──
+    op: <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="20" fill="#FF0420"/>
+      <circle cx="16" cy="20" r="5" fill="white" opacity="0.9"/>
+      <circle cx="24" cy="20" r="5" fill="white" opacity="0.9"/>
+      <circle cx="16" cy="20" r="2.5" fill="#FF0420"/>
+      <circle cx="24" cy="20" r="2.5" fill="#FF0420"/>
+    </svg>,
+
+    // ── Sui ──
+    sui: <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="20" fill="#6FBCF0"/>
+      <path d="M20 10c0 0-8 5-8 12s8 8 8 8 8-1 8-8-8-12-8-12z" fill="white" opacity="0.9"/>
+      <path d="M17 22c0 2 1.3 3 3 3s3-1 3-3-1.3-4-3-6c-1.7 2-3 4-3 6z" fill="#6FBCF0"/>
+    </svg>,
+
+    // ── Filecoin ──
+    fil: <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="20" fill="#0090FF"/>
+      <path d="M20 10v20M14 14l6-4 6 4M14 26l6 4 6-4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+      <circle cx="20" cy="20" r="3" fill="white"/>
+    </svg>,
+
+    // ── Internet Computer ──
+    icp: <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="20" fill="#29ABE2"/>
+      <ellipse cx="20" cy="20" rx="10" ry="5" stroke="white" strokeWidth="2" fill="none"/>
+      <ellipse cx="20" cy="20" rx="10" ry="5" stroke="white" strokeWidth="2" fill="none" transform="rotate(60 20 20)"/>
+      <circle cx="20" cy="20" r="3" fill="white"/>
+    </svg>,
+  };
+
+  return logos[slug] ?? (
+    <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="20" fill="#6B7280"/>
+      <text x="50%" y="55%" textAnchor="middle" dominantBaseline="middle" fill="white" fontSize="10" fontWeight="bold" fontFamily="Arial">
+        {slug.slice(0, 3).toUpperCase()}
+      </text>
+    </svg>
+  );
+}
+
+// ─── Scannable QR code generated from the exact address ────────────────────────
+
+function QRCodeDisplay({ value, size = 184 }: { value: string; size?: number }) {
+  const [src, setSrc] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    setSrc("");
+
+    if (!value) return () => { active = false; };
+
+    QRCode.toDataURL(value, {
+      errorCorrectionLevel: "M",
+      margin: 2,
+      width: size,
+      color: { dark: "#111827", light: "#ffffff" },
+    })
+      .then(url => {
+        if (active) setSrc(url);
+      })
+      .catch(() => {
+        if (active) setSrc("");
+      });
+
+    return () => { active = false; };
+  }, [value, size]);
+
+  return (
+    <div className="flex flex-col items-center">
+      <div className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
+        {src ? (
+          <img
+            src={src}
+            width={size}
+            height={size}
+            alt={`Scannable QR code for ${value}`}
+            className="block rounded-lg"
+          />
+        ) : (
+          <div
+            className="bg-gray-100 rounded-lg animate-pulse"
+            style={{ width: size, height: size }}
+            aria-label="Generating QR code"
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Copy Button ──────────────────────────────────────────────────────────────
+
+function CopyButton({ text, label }: { text: string; label?: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+  return (
+    <button
+      onClick={copy}
+      className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all ${
+        copied
+          ? "bg-green-50 text-green-600 border border-green-200"
+          : "bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200"
+      }`}
+    >
+      {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+      {copied ? "Copied!" : (label ?? "Copy")}
+    </button>
+  );
+}
+
+// ─── Transaction Receipt ──────────────────────────────────────────────────────
 
 function TransactionReceipt({
   type, coin, coinSymbol, coinAmount, usdAmount, txId, network, onClose, pending

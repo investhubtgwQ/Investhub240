@@ -1,3 +1,27 @@
+import { useEffect, useState, useRef } from "react";
+import { Link, useLocation } from "wouter";
+import { useAuth } from "@/hooks/use-auth";
+import {
+  ArrowRight, Shield, TrendingUp, Zap, Lock,
+  ChevronRight, Sparkles, RefreshCw, ArrowUpRight, Globe, Check, ChevronDown
+} from "lucide-react";
+
+// ── Translations ──────────────────────────────────────────────────────────────
+
+const LANGS: { code: string; label: string; native: string; flag: string }[] = [
+  { code: "en",    label: "English",            native: "English",    flag: "🇺🇸" },
+  { code: "es",    label: "Spanish",            native: "Español",    flag: "🇪🇸" },
+  { code: "fr",    label: "French",             native: "Français",   flag: "🇫🇷" },
+  { code: "pt",    label: "Portuguese",         native: "Português",  flag: "🇧🇷" },
+  { code: "de",    label: "German",             native: "Deutsch",    flag: "🇩🇪" },
+  { code: "it",    label: "Italian",            native: "Italiano",   flag: "🇮🇹" },
+  { code: "ru",    label: "Russian",            native: "Русский",    flag: "🇷🇺" },
+  { code: "ar",    label: "Arabic",             native: "العربية",    flag: "🇸🇦" },
+  { code: "zh",    label: "Chinese",            native: "中文",        flag: "🇨🇳" },
+  { code: "ja",    label: "Japanese",           native: "日本語",      flag: "🇯🇵" },
+  { code: "ko",    label: "Korean",             native: "한국어",      flag: "🇰🇷" },
+  { code: "hi",    label: "Hindi",              native: "हिन्दी",     flag: "🇮🇳" },
+  { code: "tr",    label: "Turkish",            native: "Türkçe",     flag: "🇹🇷" },
   { code: "nl",    label: "Dutch",              native: "Nederlands",  flag: "🇳🇱" },
   { code: "pl",    label: "Polish",             native: "Polski",     flag: "🇵🇱" },
   { code: "id",    label: "Indonesian",         native: "Bahasa Indonesia", flag: "🇮🇩" },
