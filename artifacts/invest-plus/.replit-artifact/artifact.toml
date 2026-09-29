@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "Invest Plus"
+version = "1.0.0"
+id = "artifacts/invest-plus"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25664
+
+[services.development]
+run = "npm run dev --workspace=@workspace/invest-plus"
+
+[services.production]
+build = [ "npm", "run", "build", "--workspace=@workspace/invest-plus" ]
+serve = "static"
+publicDir = "artifacts/invest-plus/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25664"
+BASE_PATH = "/"

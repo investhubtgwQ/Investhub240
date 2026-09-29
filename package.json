@@ -1,0 +1,29 @@
+{
+  "name": "invest-plus",
+  "version": "0.0.0",
+  "license": "MIT",
+  "private": true,
+  "workspaces": [
+    "artifacts/api-server",
+    "artifacts/invest-plus",
+    "artifacts/mockup-sandbox",
+    "lib/api-client-react",
+    "lib/api-zod",
+    "lib/db",
+    "lib/api-spec",
+    "scripts"
+  ],
+  "scripts": {
+    "build": "npm run typecheck && npm run build:web",
+    "build:web": "npm run build --workspace=@workspace/invest-plus",
+    "typecheck:libs": "tsc --build",
+    "typecheck:apps": "npm run typecheck --workspace=@workspace/api-server && npm run typecheck --workspace=@workspace/invest-plus",
+    "typecheck": "npm run typecheck:libs && npm run typecheck:apps"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

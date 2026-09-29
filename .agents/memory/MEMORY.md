@@ -1,0 +1,1 @@
+- [Portable npm lockfiles](npm-registry-lockfile.md) — Normalize Replit proxy tarball URLs before using a generated npm lockfile outside Replit.
