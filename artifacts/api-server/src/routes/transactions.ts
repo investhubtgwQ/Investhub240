@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { db, transactionsTable, walletRequestsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { requireAuth, type AuthRequest } from "../middlewares/auth";
-import { ALL_COINS } from "./wallet";
+import { requireAuth, type AuthRequest } from "../middlewares/auth.js";
+import { ALL_COINS } from "./wallet.js";
 
 const router = Router();
 

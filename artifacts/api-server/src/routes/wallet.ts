@@ -7,7 +7,7 @@ import {
   walletSettingsTable,
 } from "@workspace/db";
 import { eq, and, inArray, desc } from "drizzle-orm";
-import { requireAuth, type AuthRequest } from "../middlewares/auth";
+import { requireAuth, type AuthRequest } from "../middlewares/auth.js";
 
 const router = Router();
 

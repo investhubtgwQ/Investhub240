@@ -11,12 +11,12 @@ import {
   walletRequestsTable,
   walletSettingsTable,
 } from "@workspace/db";
-import { requireAdmin, type AdminRequest } from "../middlewares/auth";
+import { requireAdmin, type AdminRequest } from "../middlewares/auth.js";
 import {
   ALL_COINS,
   ensureWalletSettings,
   formatWalletRequest,
-} from "./wallet";
+} from "./wallet.js";
 
 const router = Router();
 const DEFAULT_APP_SETTINGS = {

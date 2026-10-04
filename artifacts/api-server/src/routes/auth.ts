@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db, usersTable, sessionsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import * as crypto from "crypto";
-import { requireAuth, type AuthRequest } from "../middlewares/auth";
+import { requireAuth, type AuthRequest } from "../middlewares/auth.js";
 
 const router = Router();
 

@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import app from "./artifacts/api-server/src/app";
+import app from "./artifacts/api-server/src/app.js";
 
 function normalizeApiPath(req: Request) {
   if (req.url === "/api" || req.url?.startsWith("/api/")) return;
