@@ -5,8 +5,8 @@
  * Invest Plus API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { Investment } from './investment';
-import type { Transaction } from './transaction';
+import type { Investment } from './investment.js';
+import type { Transaction } from './transaction.js';
 
 export interface DashboardSummary {
   totalInvested: number;

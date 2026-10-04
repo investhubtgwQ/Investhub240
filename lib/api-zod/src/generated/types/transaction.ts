@@ -5,7 +5,7 @@
  * Invest Plus API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { TransactionType } from './transactionType';
+import type { TransactionType } from './transactionType.js';
 
 export interface Transaction {
   id: number;

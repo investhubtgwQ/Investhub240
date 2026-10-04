@@ -1,5 +1,5 @@
 import { pgTable, serial, integer, numeric, text, timestamp, unique } from "drizzle-orm/pg-core";
-import { usersTable } from "./users";
+import { usersTable } from "./users.js";
 
 export const coinBalancesTable = pgTable("coin_balances", {
   id: serial("id").primaryKey(),

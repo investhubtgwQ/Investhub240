@@ -6,17 +6,17 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export * from './authResponse';
-export * from './dashboardSummary';
-export * from './errorResponse';
-export * from './healthStatus';
-export * from './investment';
-export * from './investmentInput';
-export * from './investmentStatus';
-export * from './loginInput';
-export * from './messageResponse';
-export * from './plan';
-export * from './registerInput';
-export * from './transaction';
-export * from './transactionType';
-export * from './user';
+export * from './authResponse.js';
+export * from './dashboardSummary.js';
+export * from './errorResponse.js';
+export * from './healthStatus.js';
+export * from './investment.js';
+export * from './investmentInput.js';
+export * from './investmentStatus.js';
+export * from './loginInput.js';
+export * from './messageResponse.js';
+export * from './plan.js';
+export * from './registerInput.js';
+export * from './transaction.js';
+export * from './transactionType.js';
+export * from './user.js';
