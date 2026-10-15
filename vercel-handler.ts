@@ -1,12 +1,34 @@
 import type { Request, Response } from "express";
 import app from "./artifacts/api-server/src/app.js";
 
-function normalizeApiPath(req: Request) {
-  if (req.url === "/api" || req.url?.startsWith("/api/")) return;
-  req.url = `/api${req.url?.startsWith("/") ? req.url : `/${req.url ?? ""}`}`;
+function normalizeApiPath(req: Request): boolean {
+  const requestUrl = new URL(req.url ?? "/", "http://localhost");
+
+  if (requestUrl.searchParams.has("__api_path")) {
+    const pathSuffix = requestUrl.searchParams.get("__api_path") ?? "";
+    if (pathSuffix.split("/").some((segment) => segment === "." || segment === "..")) {
+      return false;
+    }
+
+    requestUrl.searchParams.delete("__api_path");
+    requestUrl.pathname = pathSuffix
+      ? `/api/${pathSuffix.replace(/^\/+/, "")}`
+      : "/api";
+    req.url = `${requestUrl.pathname}${requestUrl.search}`;
+    return true;
+  }
+
+  if (requestUrl.pathname !== "/api" && !requestUrl.pathname.startsWith("/api/")) {
+    requestUrl.pathname = `/api${requestUrl.pathname.startsWith("/") ? requestUrl.pathname : `/${requestUrl.pathname}`}`;
+  }
+  req.url = `${requestUrl.pathname}${requestUrl.search}`;
+  return true;
 }
 
 export default function vercelHandler(req: Request, res: Response) {
-  normalizeApiPath(req);
+  if (!normalizeApiPath(req)) {
+    res.status(400).json({ error: "Invalid API path" });
+    return;
+  }
   return app(req, res);
 }

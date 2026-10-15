@@ -40,9 +40,28 @@ async function registerUser(data: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  const body = await res.json();
-  if (!res.ok) throw new Error(body.error || "Registration failed");
-  return body;
+  let body: unknown;
+  try {
+    body = await res.json();
+  } catch {
+    if (!res.ok) {
+      throw new Error(`Registration service returned HTTP ${res.status}`);
+    }
+    throw new Error("Registration service returned an invalid response");
+  }
+
+  if (!res.ok) {
+    const message =
+      typeof body === "object" && body !== null && "error" in body && typeof body.error === "string"
+        ? body.error
+        : `Registration failed (HTTP ${res.status})`;
+    throw new Error(message);
+  }
+
+  if (typeof body !== "object" || body === null || !("token" in body) || typeof body.token !== "string") {
+    throw new Error("Registration service returned an invalid response");
+  }
+  return { token: body.token };
 }
 
 // Step indicator
