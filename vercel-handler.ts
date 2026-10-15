@@ -1,5 +1,4 @@
 import type { Request, Response } from "express";
-import app from "./artifacts/api-server/src/app.js";
 
 function normalizeApiPath(req: Request): boolean {
   const requestUrl = new URL(req.url ?? "/", "http://localhost");
@@ -25,10 +24,11 @@ function normalizeApiPath(req: Request): boolean {
   return true;
 }
 
-export default function vercelHandler(req: Request, res: Response) {
+export default async function vercelHandler(req: Request, res: Response) {
   if (!normalizeApiPath(req)) {
     res.status(400).json({ error: "Invalid API path" });
     return;
   }
+  const { default: app } = await import("./artifacts/api-server/src/app.js");
   return app(req, res);
 }
