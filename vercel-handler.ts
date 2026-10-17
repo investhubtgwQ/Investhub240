@@ -29,6 +29,6 @@ export default async function vercelHandler(req: Request, res: Response) {
     res.status(400).json({ error: "Invalid API path" });
     return;
   }
-  const { default: app } = await import("./artifacts/api-server/src/app.js");
+  const { default: app } = await import("./artifacts/api-server/dist/app.mjs");
   return app(req, res);
 }

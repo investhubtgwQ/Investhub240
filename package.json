@@ -14,8 +14,10 @@
     "scripts"
   ],
   "scripts": {
-    "build": "npm run typecheck && npm run build:web",
+    "build": "npm run typecheck && npm run build:api && npm run build:web",
+    "build:api": "npm run build --workspace=@workspace/api-server",
     "build:web": "npm run build --workspace=@workspace/invest-plus",
+    "vercel-build": "npm run build:api",
     "typecheck:libs": "tsc --build",
     "typecheck:apps": "npm run typecheck --workspace=@workspace/api-server && npm run typecheck --workspace=@workspace/invest-plus",
     "typecheck": "npm run typecheck:libs && npm run typecheck:apps"
